@@ -1,0 +1,8 @@
+{
+  "name": "Monofile",
+  "description": "Convert any public GitHub repository into a single structured text file.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

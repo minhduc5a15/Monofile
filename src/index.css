@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background-color: #0b0b10;
+    color: #f1f5f9;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+  }
+}
+
+/* Custom subtle dark scrollbar matching the Repo2TXT tree panel */
+.repo-scrollbar::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.repo-scrollbar::-webkit-scrollbar-track {
+  background: rgba(18, 18, 28, 0.6);
+  border-radius: 9999px;
+}
+
+.repo-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(113, 113, 145, 0.35);
+  border-radius: 9999px;
+}
+
+.repo-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(147, 83, 246, 0.55);
+}
