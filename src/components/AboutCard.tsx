@@ -14,7 +14,7 @@ export function AboutCard() {
       </div>
 
       <p className="mt-2.5 text-xs leading-relaxed text-slate-400">
-        Repo2TXT is a simple utility to export GitHub repositories as plain text files. Perfect for
+        Monofile is a simple utility to export GitHub repositories as plain text files. Perfect for
         reading, archiving, or... well, whatever you need it for.
       </p>
 

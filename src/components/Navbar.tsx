@@ -47,14 +47,14 @@ export function Navbar({ onHomeClick }: NavbarProps) {
               </svg>
             </span>
             <span className="font-display text-base font-bold tracking-tight text-white sm:text-lg">
-              Repo<span className="text-[#9D6BFF]">2TXT</span>
+              Mono<span className="text-[#9D6BFF]">file</span>
             </span>
           </button>
         </div>
 
         {/* Zone 3: Primary external action */}
         <a
-          href="https://github.com"
+          href="https://github.com/minhduc5a15/monofile"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-300 transition-colors hover:bg-white/5 hover:text-white whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"

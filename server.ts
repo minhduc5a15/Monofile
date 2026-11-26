@@ -8,7 +8,7 @@ const PORT = 3000;
 function githubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
-    'User-Agent': 'Repo2TXT-WebApp/1.0',
+    'User-Agent': 'Monofile-WebApp/1.0',
   };
   if (process.env.GITHUB_TOKEN) {
     headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
@@ -116,7 +116,7 @@ async function startServer() {
       try {
         const giRes = await fetch(
           `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(activeBranch)}/.gitignore`,
-          { headers: { 'User-Agent': 'Repo2TXT-WebApp/1.0' } }
+          { headers: { 'User-Agent': 'Monofile-WebApp/1.0' } }
         );
         if (giRes.ok) {
           gitignore = await giRes.text();
@@ -176,7 +176,7 @@ async function startServer() {
           const rawUrl = `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(branch)}/${encodedPath}`;
           try {
             const response = await fetch(rawUrl, {
-              headers: { 'User-Agent': 'Repo2TXT-WebApp/1.0' },
+              headers: { 'User-Agent': 'Monofile-WebApp/1.0' },
             });
             if (!response.ok) {
               return { path: filePath, content: '', size: 0, skipped: true };
@@ -223,7 +223,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Repo2TXT server listening on http://localhost:${PORT}`);
+    console.log(`Monofile server listening on http://localhost:${PORT}`);
   });
 }
 

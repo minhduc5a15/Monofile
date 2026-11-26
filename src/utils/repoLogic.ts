@@ -405,7 +405,7 @@ export function formatOutputDocument(
     const sections: string[] = [
       `# ${repoSlug} (${repo.branch})`,
       '',
-      `Exported ${sortedFiles.length} files via Repo2TXT.`,
+      `Exported ${sortedFiles.length} files via Monofile.`,
     ];
     if (settings.includeDirectoryStructure) {
       sections.push('', '## Directory Structure', '', '```text', treeText, '```');
