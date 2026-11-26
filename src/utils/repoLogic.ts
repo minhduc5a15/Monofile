@@ -355,12 +355,50 @@ function getLanguageHint(filePath: string): string {
   return map[ext] ?? '';
 }
 
+function countFileLines(content: string): number {
+  if (!content) return 0;
+  return content.split(/\r?\n/).length;
+}
+
+function formatLineLabel(lines: number): string {
+  return `${lines.toLocaleString('en-US')} ${lines === 1 ? 'line' : 'lines'}`;
+}
+
+function getSafeTxtDivider(files: FileWithContent[]): string {
+  const base = '='.repeat(80);
+  const allContent = files.map((f) => f.content).join('\n');
+  if (!allContent.includes(base) && !allContent.includes('END OF FILE [')) {
+    return base;
+  }
+  let attempt = 1;
+  let candidate = `${base} [MONOFILE-BOUNDARY]`;
+  while (allContent.includes(candidate)) {
+    attempt += 1;
+    candidate = `${base} [MONOFILE-BOUNDARY-${attempt}]`;
+  }
+  return candidate;
+}
+
+function getSafeMarkdownFence(content: string): string {
+  const matches = content.match(/`+/g);
+  let maxLen = 2;
+  if (matches) {
+    for (const run of matches) {
+      if (run.length > maxLen) {
+        maxLen = run.length;
+      }
+    }
+  }
+  return '`'.repeat(maxLen + 1);
+}
+
 export function formatOutputDocument(
   repo: Pick<RepoMetadata, 'owner' | 'name' | 'branch'>,
   files: FileWithContent[],
   settings: ConversionSettings
 ): FormattedOutput {
   const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path));
+  const totalFiles = sortedFiles.length;
   const repoSlug = `${repo.owner}/${repo.name}`;
   const treeText = settings.includeDirectoryStructure
     ? generateAsciiTree(
@@ -368,6 +406,21 @@ export function formatOutputDocument(
         repo.name
       )
     : '';
+  const encoder = new TextEncoder();
+
+  const fileMetrics = sortedFiles.map((f, idx) => {
+    const lines = countFileLines(f.content);
+    const bytes = f.size > 0 ? f.size : encoder.encode(f.content).length;
+    return {
+      file: f,
+      index: idx + 1,
+      total: totalFiles,
+      lines,
+      bytes,
+      sizeLabel: formatBytes(bytes),
+      lineLabel: formatLineLabel(lines),
+    };
+  });
 
   let content = '';
 
@@ -375,27 +428,46 @@ export function formatOutputDocument(
     const payload: Record<string, unknown> = {
       repository: repoSlug,
       branch: repo.branch,
-      fileCount: sortedFiles.length,
+      fileCount: totalFiles,
     };
     if (settings.includeDirectoryStructure) {
       payload.directoryStructure = treeText;
     }
-    payload.files = sortedFiles.map((f) =>
-      settings.includeFilePaths ? { path: f.path, content: f.content } : { content: f.content }
+    payload.files = fileMetrics.map((m) =>
+      settings.includeFilePaths
+        ? {
+            index: m.index,
+            total: m.total,
+            path: m.file.path,
+            lines: m.lines,
+            size: m.bytes,
+            sizeFormatted: m.sizeLabel,
+            content: m.file.content,
+          }
+        : {
+            index: m.index,
+            total: m.total,
+            lines: m.lines,
+            size: m.bytes,
+            sizeFormatted: m.sizeLabel,
+            content: m.file.content,
+          }
     );
     content = JSON.stringify(payload, null, 2);
   } else if (settings.outputFormat === '.xml') {
     const parts: string[] = [
-      `<repository name="${escapeXml(repoSlug)}" branch="${escapeXml(repo.branch)}">`,
+      `<repository name="${escapeXml(repoSlug)}" branch="${escapeXml(repo.branch)}" fileCount="${totalFiles}">`,
     ];
     if (settings.includeDirectoryStructure) {
       parts.push(`  <directory_structure>\n${escapeXml(treeText)}\n  </directory_structure>`);
     }
     parts.push('  <files>');
-    for (const file of sortedFiles) {
-      const pathAttr = settings.includeFilePaths ? ` path="${escapeXml(file.path)}"` : '';
-      parts.push(`    <file${pathAttr}>`);
-      parts.push(escapeXml(file.content));
+    for (const m of fileMetrics) {
+      const pathAttr = settings.includeFilePaths ? ` path="${escapeXml(m.file.path)}"` : '';
+      parts.push(
+        `    <file index="${m.index}" total="${m.total}"${pathAttr} lines="${m.lines}" size="${m.bytes}" sizeFormatted="${escapeXml(m.sizeLabel)}">`
+      );
+      parts.push(escapeXml(m.file.content));
       parts.push('    </file>');
     }
     parts.push('  </files>');
@@ -405,54 +477,63 @@ export function formatOutputDocument(
     const sections: string[] = [
       `# ${repoSlug} (${repo.branch})`,
       '',
-      `Exported ${sortedFiles.length} files via Monofile.`,
+      `Exported ${totalFiles} files via Monofile.`,
     ];
     if (settings.includeDirectoryStructure) {
-      sections.push('', '## Directory Structure', '', '```text', treeText, '```');
+      const treeFence = getSafeMarkdownFence(treeText);
+      sections.push('', '## Directory Structure', '', `${treeFence}text`, treeText, treeFence);
     }
     sections.push('', '## Files');
-    for (const file of sortedFiles) {
-      if (settings.includeFilePaths) {
-        sections.push('', `### \`${file.path}\``);
-      }
-      const lang = getLanguageHint(file.path);
-      sections.push('', `\`\`\`${lang}`, file.content, '```');
+    for (const m of fileMetrics) {
+      const headerLabel = settings.includeFilePaths
+        ? `### [${m.index}/${m.total}] \`${m.file.path}\` (${m.lineLabel}, ${m.sizeLabel})`
+        : `### [${m.index}/${m.total}] (${m.lineLabel}, ${m.sizeLabel})`;
+      const lang = getLanguageHint(m.file.path);
+      const fence = getSafeMarkdownFence(m.file.content);
+      sections.push('', headerLabel, '', `${fence}${lang}`, m.file.content, fence);
     }
     content = sections.join('\n');
   } else {
-    // .txt default
+    // .txt default with numbered headers, line/size metadata, closing boundaries, and collision-safe dividers
+    const divider = getSafeTxtDivider(sortedFiles);
     const sections: string[] = [
-      '================================================================================',
+      divider,
       `Repository: ${repoSlug} (branch: ${repo.branch})`,
-      `Files exported: ${sortedFiles.length}`,
-      '================================================================================',
+      `Files exported: ${totalFiles}`,
+      divider,
     ];
     if (settings.includeDirectoryStructure) {
       sections.push('', 'DIRECTORY STRUCTURE', '-------------------', treeText);
     }
-    for (const file of sortedFiles) {
+    for (const m of fileMetrics) {
+      const startHeader = settings.includeFilePaths
+        ? `[${m.index}/${m.total}] FILE: ${m.file.path} (${m.lineLabel}, ${m.sizeLabel})`
+        : `[${m.index}/${m.total}] (${m.lineLabel}, ${m.sizeLabel})`;
+      const endFooter = settings.includeFilePaths
+        ? `END OF FILE [${m.index}/${m.total}]: ${m.file.path}`
+        : `END OF FILE [${m.index}/${m.total}]`;
+
       sections.push('');
-      if (settings.includeFilePaths) {
-        sections.push('================================================================================');
-        sections.push(`FILE: ${file.path}`);
-        sections.push('================================================================================');
-      } else {
-        sections.push('--------------------------------------------------------------------------------');
-      }
-      sections.push(file.content);
+      sections.push(divider);
+      sections.push(startHeader);
+      sections.push(divider);
+      sections.push(m.file.content);
+      sections.push(divider);
+      sections.push(endFooter);
+      sections.push(divider);
     }
     content = sections.join('\n');
   }
 
   const totalLines = content ? content.split('\n').length : 0;
-  const byteSize = new TextEncoder().encode(content).length;
+  const byteSize = encoder.encode(content).length;
   const estimatedTokens = Math.ceil(content.length / 4);
 
   return {
     content,
     totalLines,
     byteSize,
-    fileCount: sortedFiles.length,
+    fileCount: totalFiles,
     estimatedTokens,
   };
 }

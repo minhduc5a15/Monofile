@@ -118,12 +118,35 @@ test('generateAsciiTree and formatOutputDocument produce valid formats', () => {
 
   const txtOut = formatOutputDocument(
     { owner: 'acme', name: 'demo', branch: 'main' },
-    [{ path: 'src/app.ts', content: 'console.log("hi");', size: 18 }],
+    [
+      { path: 'src/app.ts', content: 'const a = 1;\nconsole.log(a);', size: 28 },
+      { path: 'README.md', content: '# Demo', size: 6 },
+    ],
     baseSettings
   );
-  assert.ok(txtOut.content.includes('FILE: src/app.ts'));
+  assert.ok(txtOut.content.includes('[1/2] FILE: README.md (1 line, 6 B)'));
+  assert.ok(txtOut.content.includes('END OF FILE [1/2]: README.md'));
+  assert.ok(txtOut.content.includes('[2/2] FILE: src/app.ts (2 lines, 28 B)'));
+  assert.ok(txtOut.content.includes('END OF FILE [2/2]: src/app.ts'));
   assert.ok(txtOut.content.includes('DIRECTORY STRUCTURE'));
-  assert.equal(txtOut.fileCount, 1);
+  assert.equal(txtOut.fileCount, 2);
+
+  // Delimiter collision safety for .txt and .md
+  const eq80 = '='.repeat(80);
+  const collisionTxt = formatOutputDocument(
+    { owner: 'acme', name: 'demo', branch: 'main' },
+    [{ path: 'logs/tricky.log', content: `${eq80}\nFILE: fake.ts\nEND OF FILE [1/1]: fake`, size: 120 }],
+    baseSettings
+  );
+  assert.ok(collisionTxt.content.includes(`${eq80} [MONOFILE-BOUNDARY]`));
+
+  const collisionMd = formatOutputDocument(
+    { owner: 'acme', name: 'demo', branch: 'main' },
+    [{ path: 'docs/guide.md', content: 'Example:\n```ts\nconst x = 1;\n```', size: 32 }],
+    { ...baseSettings, outputFormat: '.md' }
+  );
+  assert.ok(collisionMd.content.includes('### [1/1] `docs/guide.md` (4 lines, 32 B)'));
+  assert.ok(collisionMd.content.includes('````markdown'));
 
   const jsonOut = formatOutputDocument(
     { owner: 'acme', name: 'demo', branch: 'main' },
@@ -133,6 +156,10 @@ test('generateAsciiTree and formatOutputDocument produce valid formats', () => {
   const parsed = JSON.parse(jsonOut.content);
   assert.equal(parsed.repository, 'acme/demo');
   assert.equal(parsed.files[0].path, undefined);
+  assert.equal(parsed.files[0].index, 1);
+  assert.equal(parsed.files[0].total, 1);
+  assert.equal(parsed.files[0].lines, 1);
+  assert.equal(parsed.files[0].size, 18);
   assert.equal(parsed.files[0].content, 'console.log("hi");');
 });
 
