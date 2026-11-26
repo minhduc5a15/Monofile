@@ -22,6 +22,10 @@ import {
   SAMPLE_REPO_FILES,
   SAMPLE_REPO_METADATA,
 } from './data/sampleRepo';
+import {
+  fetchRepoFilesBatch,
+  loadRepositoryFromApiOrDirect,
+} from './utils/githubClient';
 
 const DEFAULT_SETTINGS: ConversionSettings = {
   outputFormat: '.txt',
@@ -180,23 +184,14 @@ export default function App() {
           for (let i = 0; i < capped.length; i += batchSize) {
             if (signal.aborted) return;
             const batch = capped.slice(i, i + batchSize);
-            const res = await fetch('/api/github/files', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                owner: targetMeta.owner,
-                repo: targetMeta.name,
-                branch: targetMeta.branch,
-                paths: batch.map((b) => b.path),
-              }),
-              signal,
-            });
-            if (!res.ok) {
-              const errJson = (await res.json().catch(() => ({}))) as { error?: string };
-              throw new Error(errJson.error || 'Failed to download repository files.');
-            }
-            const data = (await res.json()) as { files: FileWithContent[] };
-            collected.push(...data.files);
+            const batchFiles = await fetchRepoFilesBatch(
+              targetMeta.owner,
+              targetMeta.name,
+              targetMeta.branch,
+              batch.map((b) => b.path),
+              signal
+            );
+            collected.push(...batchFiles);
 
             const done = Math.min(i + batch.length, capped.length);
             setProcessedFilesCount(done);
@@ -274,22 +269,11 @@ export default function App() {
       setPhase('ready');
 
       try {
-        const params = new URLSearchParams({ url: urlInput.trim() });
-        if (branchOverride) params.set('branch', branchOverride);
-
-        const res = await fetch(`/api/github/repo?${params.toString()}`, {
-          signal: controller.signal,
-        });
-        const payload = (await res.json()) as {
-          error?: string;
-          metadata?: RepoMetadata;
-          files?: RepoFileEntry[];
-          gitignore?: string;
-        };
-
-        if (!res.ok || !payload.metadata || !payload.files) {
-          throw new Error(payload.error || 'Could not load repository from GitHub.');
-        }
+        const payload = await loadRepositoryFromApiOrDirect(
+          urlInput,
+          branchOverride,
+          controller.signal
+        );
 
         setMetadata(payload.metadata);
         setRawFiles(payload.files);

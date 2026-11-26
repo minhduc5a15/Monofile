@@ -16,6 +16,15 @@
   h1, h2, h3, h4 {
     font-family: var(--font-display);
   }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f8fafc;
+    -webkit-box-shadow: 0 0 0 1000px #12121b inset;
+    caret-color: #f8fafc;
+    transition: background-color 9999s ease-in-out 0s;
+  }
 }
 
 /* Custom subtle dark scrollbar matching the Monofile tree panel */
