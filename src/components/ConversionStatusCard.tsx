@@ -10,6 +10,7 @@ import {
   Copy,
   Check,
   AlertTriangle,
+  Info,
   Play,
 } from 'lucide-react';
 import { formatBytes, formatCompactNumber, type OutputFormat } from '../utils/repoLogic';
@@ -21,6 +22,10 @@ interface ConversionStatusCardProps {
   progressPercent: number;
   processedFiles: number;
   totalSelectedFiles: number;
+  rawSelectedCount: number;
+  maxExportFiles: number;
+  isCapped: boolean;
+  isTreeTruncated?: boolean;
   linesOfCode: number;
   outputSizeBytes: number;
   outputFormat: OutputFormat;
@@ -38,6 +43,10 @@ export function ConversionStatusCard({
   progressPercent,
   processedFiles,
   totalSelectedFiles,
+  rawSelectedCount,
+  maxExportFiles,
+  isCapped,
+  isTreeTruncated = false,
   linesOfCode,
   outputSizeBytes,
   outputFormat,
@@ -229,6 +238,29 @@ export function ConversionStatusCard({
           )}
         </div>
       </div>
+
+      {(isCapped || isTreeTruncated) && (
+        <div
+          role="status"
+          className="mt-3.5 flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
+        >
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden="true" />
+          <p className="leading-relaxed">
+            {isCapped && (
+              <span>
+                Capped at <strong className="font-mono font-semibold">{maxExportFiles.toLocaleString()}</strong> files per export
+                {' '}({rawSelectedCount.toLocaleString()} selected). Deselect folders or add exclude patterns to narrow down your export.
+              </span>
+            )}
+            {isCapped && isTreeTruncated && ' '}
+            {isTreeTruncated && (
+              <span>
+                GitHub truncated the full repository tree because it exceeds the API size limit.
+              </span>
+            )}
+          </p>
+        </div>
+      )}
     </section>
   );
 }

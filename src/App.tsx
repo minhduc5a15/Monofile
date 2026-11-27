@@ -48,6 +48,7 @@ export default function App() {
   const [gitignoreContent, setGitignoreContent] = useState<string>(SAMPLE_GITIGNORE);
 
   const [isFetchingRepo, setIsFetchingRepo] = useState(false);
+  const [isTreeTruncated, setIsTreeTruncated] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => new Set(['.github']));
   const [deselectedPaths, setDeselectedPaths] = useState<Set<string>>(() => new Set());
 
@@ -222,6 +223,7 @@ export default function App() {
       setMetadata(SAMPLE_REPO_METADATA);
       setRawFiles(SAMPLE_REPO_FILES);
       setGitignoreContent(SAMPLE_GITIGNORE);
+      setIsTreeTruncated(false);
       setExpandedFolders(new Set(['.github']));
       setDeselectedPaths(new Set());
       setCachedFilesContent(null);
@@ -278,6 +280,7 @@ export default function App() {
         setMetadata(payload.metadata);
         setRawFiles(payload.files);
         setGitignoreContent(payload.gitignore ?? '');
+        setIsTreeTruncated(Boolean(payload.truncated));
         setDeselectedPaths(new Set());
 
         // Auto-expand first top-level folder
@@ -376,10 +379,11 @@ export default function App() {
     copyTimerRef.current = window.setTimeout(() => setCopied(false), 2000);
   };
 
-  const displayedTotalFiles =
-    phase === 'converting' || phase === 'completed'
-      ? Math.min(selectedFiles.length, metadata.isDemo ? selectedFiles.length : MAX_LIVE_FETCH_FILES)
-      : selectedFiles.length;
+  const isExportCapped = !metadata.isDemo && selectedFiles.length > MAX_LIVE_FETCH_FILES;
+
+  const displayedTotalFiles = isExportCapped
+    ? MAX_LIVE_FETCH_FILES
+    : selectedFiles.length;
 
   const displayedOutputSize =
     formattedOutput && phase === 'completed' ? formattedOutput.byteSize : selectedSizeBytes;
@@ -431,6 +435,10 @@ export default function App() {
                   progressPercent={progressPercent}
                   processedFiles={processedFilesCount}
                   totalSelectedFiles={displayedTotalFiles}
+                  rawSelectedCount={selectedFiles.length}
+                  maxExportFiles={MAX_LIVE_FETCH_FILES}
+                  isCapped={isExportCapped}
+                  isTreeTruncated={isTreeTruncated}
                   linesOfCode={formattedOutput?.totalLines ?? estimatedLines}
                   outputSizeBytes={displayedOutputSize}
                   outputFormat={settings.outputFormat}
